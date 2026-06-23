@@ -384,6 +384,50 @@ async function runTests() {
     const after_clear = await page.locator('#log_body tr.log_row').count();
     ok(after_clear === 0, 'UI: Clear empties log display');
 
+    // ECS log format (pino-ecs / @elastic/ecs-pino-format etc) uses flat
+    // dotted keys: "log.level", "@timestamp", "log.origin.file.{name,line}".
+    const ecs_log = createTempLog([
+      '{"@timestamp":"2026-06-23T10:32:59.582Z","log.level":"info","message":"ecs info","log.origin.file.name":"e.js","log.origin.file.line":10}',
+      '{"@timestamp":"2026-06-23T10:33:00.001Z","log.level":"error","message":"ecs error","log.origin.file.name":"e.js","log.origin.file.line":11}',
+    ]);
+    await httpPost(`${base_url}/api/config/add`, { path: ecs_log, tagName: 'ecs-test' });
+    await sleep(500);
+    await page.reload();
+    await sleep(2000);
+    await page.locator('.file_item').filter({ hasText: 'ecs-test' }).first().click({ timeout: 5000 });
+    await page.waitForSelector('#log_body tr.log_row', { timeout: 5000 }).catch(() => null);
+    await sleep(500);
+
+    const ecs_rows = page.locator('#log_body tr.log_row');
+    const ecs_row_count = await ecs_rows.count();
+    ok(ecs_row_count >= 2, `ECS: rows rendered (${ecs_row_count})`);
+
+    const ecs_levels = await page.locator('#log_body tr.log_row .level_badge').allTextContents();
+    ok(ecs_levels.some((l) => l.trim().toUpperCase() === 'INFO'),
+      'ECS: log.level extracted as INFO');
+    ok(ecs_levels.some((l) => l.trim().toUpperCase() === 'ERROR'),
+      'ECS: log.level extracted as ERROR');
+    ok(!ecs_levels.some((l) => l.trim() === '-'),
+      'ECS: no rows show "-" for level (log.level recognised)');
+
+    const ecs_ts = await page.locator('#log_body tr.log_row .col_ts').allTextContents();
+    ok(ecs_ts.some((t) => t.includes('2026-06-23')),
+      'ECS: @timestamp extracted into ts column');
+
+    const ecs_file = await page.locator('#log_body tr.log_row .col_file').allTextContents();
+    ok(ecs_file.some((f) => f.includes('e.js') && f.includes('10')),
+      'ECS: log.origin.file.{name,line} extracted into file:line column');
+
+    await page.locator('#level_filter').selectOption('ERROR');
+    await sleep(300);
+    const ecs_err_rows = await page.locator('#log_body tr.log_row').count();
+    ok(ecs_err_rows === 1, `ECS: level filter works on log.level (${ecs_err_rows} ERROR row)`);
+    await page.locator('#level_filter').selectOption('');
+    await sleep(300);
+
+    await page.locator('#clear_btn').click();
+    await sleep(300);
+
     const long_msg = 'B'.repeat(120);
     const long_log = createTempLog([
       `{"ts":"2026-02-18T10:00:01","lv":"INFO","msg":"${long_msg}","fl":"l.js","ln":1}`,
