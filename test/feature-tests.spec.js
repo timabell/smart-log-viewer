@@ -402,11 +402,12 @@ async function runTests() {
     if (await trunc_cell.count() > 0) {
       await trunc_cell.click();
       await sleep(200);
-      const full_modal = page.locator('#modal_overlay');
-      const modal_visible = !(await full_modal.getAttribute('hidden'));
-      const modal_title = await full_modal.locator('h3').textContent();
-      ok(modal_visible, 'UI: Click truncated cell opens Full Value modal');
-      ok(modal_title?.includes('Full Value'), 'UI: Modal shows Full Value title');
+      const modal = page.locator('#modal_overlay');
+      const modal_visible = !(await modal.getAttribute('hidden'));
+      const modal_title = await modal.locator('h3').textContent();
+      ok(modal_visible, 'UI: Click truncated cell opens modal');
+      ok(modal_title?.includes('Log Entry (JSON)'),
+        'UI: Truncated cell click opens JSON modal, not Full Value (issue #3)');
     } else {
       ok(true, 'UI: Click truncated (skip)');
     }

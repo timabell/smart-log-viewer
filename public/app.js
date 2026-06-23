@@ -224,24 +224,10 @@
     $cell_tooltip.classList.remove('visible');
   }
 
-  function showExpandModal(text) {
-    $modal_content.textContent = text;
-    $modal_overlay.querySelector('h3').textContent = 'Full Value';
-    $modal_overlay.hidden = false;
-    selected_entry_for_modal = null;
-  }
-
   function bindRowClicks() {
     if ($log_body._rowClick) return;
     $log_body._rowClick = true;
     $log_body.addEventListener('click', (e) => {
-      const cell = e.target.closest('.cell_truncate[data-full]');
-      if (cell) {
-        e.stopPropagation();
-        const full = cell.getAttribute('data-full');
-        if (full) showExpandModal(full);
-        return;
-      }
       const row = e.target.closest('tr.log_row');
       if (!row) return;
       const raw_idx = parseInt(row.getAttribute('data-raw-index'), 10);
