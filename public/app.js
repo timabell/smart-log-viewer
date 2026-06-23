@@ -73,8 +73,8 @@
   }
 
   function formatFileLine(entry) {
-    const fl = entry.fl || entry.file;
-    const ln = entry.ln || entry.line;
+    const fl = entry.fl || entry.file || entry['log.origin.file.name'];
+    const ln = entry.ln || entry.line || entry['log.origin.file.line'];
     if (!fl && !ln) return '-';
     if (fl && ln != null) return `${fl}:${ln}`;
     return fl || String(ln) || '-';
@@ -84,13 +84,21 @@
     return entry.msg || entry.message || entry.raw || '-';
   }
 
+  function getLevel(entry) {
+    return entry.lv || entry.level || entry['log.level'] || '';
+  }
+
+  function getTs(entry) {
+    return entry.ts || entry['@timestamp'];
+  }
+
   function isSqlLike(text) {
     const lower = String(text).toLowerCase();
     return /\b(select|insert|update|delete|from|where|into|values)\b/.test(lower);
   }
 
   function matchesFilters(entry) {
-    const level = (entry.lv || entry.level || '').toUpperCase();
+    const level = getLevel(entry).toUpperCase();
     const filter_level = $level_filter.value;
     if (filter_level && level !== filter_level) return false;
 
@@ -152,13 +160,13 @@
 
     $log_body.innerHTML = capped
       .map((entry, idx) => {
-        const level = String(entry.lv || entry.level || '').trim();
+        const level = String(getLevel(entry)).trim();
         const level_class = getLevelClass(level);
         const source = getSourceForPath(entry._file_path);
         const tag = entry._source_tag || source.tagName;
         const color = source.color;
         const raw_idx = log_entries.indexOf(entry);
-        const ts = formatTs(entry.ts);
+        const ts = formatTs(getTs(entry));
         const fl = formatFileLine(entry);
         const msg = formatMsg(entry);
         const row_class = idx % 2 === 1 ? 'row_alt' : '';
@@ -293,7 +301,7 @@
           log_entries = log_entries
             .filter((e) => e._file_path !== msg.file_path)
             .concat(new_entries)
-            .sort((a, b) => String(a.ts || '').localeCompare(String(b.ts || '')));
+            .sort((a, b) => String(getTs(a) || '').localeCompare(String(getTs(b) || '')));
           if (log_entries.length > LOG_WINDOW_CAP) {
             log_entries = log_entries.slice(-LOG_WINDOW_CAP);
           }
